@@ -1,0 +1,6 @@
+numpy>=1.23
+h5py>=3.0          # read MaxWell MaxLab Live .raw.h5 (connectivity.load_network_assay)
+matplotlib>=3.5    # figures + selection QC plots
+
+# Hardware backend only (install on the MaxTwo rig PC, from MaxWell):
+#   maxlab          # MaxLab Live Python API  (api-docs.mxwbio.com)
