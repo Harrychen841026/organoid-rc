@@ -70,7 +70,15 @@ def record_during_stim(stim_electrodes, record_seconds=12.0, amp_dac=80,
 
     maxlab.util.initialize()
     maxlab.send(maxlab.chip.Amplifier().set_gain(512))
-    # [MAXTWO] activate the target well here before routing (install-specific).
+    # MaxTwo: activate the target well before routing. [VERIFY vs your stimulate.py]
+    if well is not None:
+        wi = int(str(well)[4:]) if str(well).lower().startswith("well") else int(well)
+        maxlab.activate([wi])
+        try:
+            maxlab.set_primary_well(wi)
+        except Exception:                     # noqa
+            pass
+        print(f"Activated well index {wi}.")
 
     array = maxlab.chip.Array("stimulation")
     array.reset()
@@ -244,13 +252,23 @@ def _synth_stim_recording(seed=0, duration=40.0, n_ch=40, stim_times=(10, 20, 30
 
 
 if __name__ == "__main__":
-    ap = argparse.ArgumentParser(description="Stimulation sanity check")
+    ap = argparse.ArgumentParser(description="Stimulation sanity check (record while stim)")
     ap.add_argument("--demo", action="store_true",
                     help="synthetic delivered-vs-not test (no hardware)")
-    ap.add_argument("--file", help="recorded .raw.h5 to check")
-    ap.add_argument("--well", default=None)
+    ap.add_argument("--record", action="store_true",
+                    help="LIVE: record while stimulating, then check (rig only)")
+    ap.add_argument("--file", help="check an already-recorded .raw.h5")
+    ap.add_argument("--well", default=None,
+                    help="MaxTwo well 0..5 (or well000). Required on MaxTwo.")
+    # live stim params (used with --record)
+    ap.add_argument("--electrodes", help="comma-separated stim electrode ids")
+    ap.add_argument("--amp", type=int, default=80, help="amplitude DAC LSB (START LOW)")
+    ap.add_argument("--n-pulses", type=int, default=10)
+    ap.add_argument("--rate-hz", type=float, default=10.0)
+    ap.add_argument("--record-seconds", type=float, default=12.0)
+    ap.add_argument("--out-dir", default=".")
     ap.add_argument("--stim-times", default=None,
-                    help="comma-separated stim onset times in seconds")
+                    help="comma stim onset times (s); only needed for --file")
     ap.add_argument("--out", default="peristim_check.png")
     args = ap.parse_args()
 
@@ -263,6 +281,16 @@ if __name__ == "__main__":
         print("\n>> case B: pulse NOT delivered (control)")
         d0 = _synth_stim_recording(seed=2, deliver=False)
         peristim_check(d0, [10, 20, 30])
+    elif args.record:
+        if not args.electrodes:
+            raise SystemExit("--record needs --electrodes (and --well on MaxTwo)")
+        electrodes = [int(e) for e in args.electrodes.split(",") if e.strip()]
+        h5, stim_times = record_during_stim(
+            electrodes, record_seconds=args.record_seconds, amp_dac=args.amp,
+            n_pulses=args.n_pulses, rate_hz=args.rate_hz,
+            out_dir=args.out_dir, well=args.well)
+        data = cx.load_network_assay(h5, well=args.well)
+        peristim_check(data, stim_times, plot_path=args.out)
     elif args.file:
         stim_times = [float(x) for x in args.stim_times.split(",")] if args.stim_times else []
         if not stim_times:

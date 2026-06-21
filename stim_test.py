@@ -48,6 +48,14 @@ except Exception:                       # noqa
 FS_HZ = 20_000.0                         # MaxTwo sampling rate
 
 
+def parse_well(s):
+    """'0' / 'well000' / 3 -> 0-based well index, or None."""
+    if s is None:
+        return None
+    s = str(s).strip()
+    return int(s[4:]) if s.lower().startswith("well") else int(s)
+
+
 def append_biphasic_pulse(seq, amplitude_dac, phase_samples):
     """One charge-balanced biphasic voltage pulse on DAC 0.
 
@@ -83,7 +91,7 @@ def main():
     ap.add_argument("--electrodes", required=True,
                     help="comma-separated electrode ids to stimulate, e.g. 12044,9810")
     ap.add_argument("--well", default=None,
-                    help="MaxTwo well to activate, e.g. well000 (see [MAXTWO] note)")
+                    help="MaxTwo well to activate: 0..5 (or well000). Required on MaxTwo.")
     ap.add_argument("--amp", type=int, default=100, help="amplitude in DAC LSB (START LOW)")
     ap.add_argument("--phase-us", type=int, default=200, help="duration per phase (us)")
     ap.add_argument("--n-pulses", type=int, default=10)
@@ -105,9 +113,19 @@ def main():
     # ---- 1. initialize ----------------------------------------------------
     maxlab.util.initialize()
     maxlab.send(maxlab.chip.Amplifier().set_gain(args.gain))
-    # [MAXTWO] If on a MaxTwo plate, activate the target well here before routing.
-    #   The well-selection call is install-specific -- check the api-docs MaxTwo
-    #   example (commonly a maxlab.util/maxlab.system well/subchip selection).
+    # MaxTwo: activate the target well BEFORE routing/stim, else you hit the
+    # default/active well. [VERIFY signature against your installed stimulate.py]
+    if args.well is not None:
+        wi = parse_well(args.well)
+        maxlab.activate([wi])                 # maxlab.activate(list_of_well_indices)
+        try:
+            maxlab.set_primary_well(wi)       # streaming well if several active
+        except Exception:                     # noqa  (not all versions/needed)
+            pass
+        print(f"Activated well index {wi}.")
+    else:
+        print("No --well given: using whatever well is active (fine on MaxOne; "
+              "on MaxTwo pass --well 0..5).")
 
     # ---- 2. route the stimulation electrodes ------------------------------
     array = maxlab.chip.Array("stimulation")
