@@ -1,0 +1,37 @@
+{
+  "file": "/home/mxwbio/Data/Harry/Harry/260615/M07915/Network/000002/data.raw.h5",
+  "well": "well001",
+  "rec": null,
+  "bin_ms": 2.0,
+  "delays_ms": [
+    2.0,
+    4.0,
+    6.0,
+    8.0,
+    10.0,
+    14.0,
+    18.0
+  ],
+  "input_channels": [
+    851,
+    803,
+    948,
+    806,
+    451,
+    1017
+  ],
+  "output_channels": [
+    819
+  ],
+  "input_electrodes": [
+    21478,
+    24787,
+    8001,
+    14824,
+    21532,
+    3633
+  ],
+  "output_electrodes": [
+    20598
+  ]
+}
